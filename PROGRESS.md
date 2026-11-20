@@ -38,6 +38,8 @@ _Last updated: 2026-11-20 (Step 2B chunk 1: review page wired to the live API)_
   - `test/example.test.ts` — 5 tests: every example quote appears verbatim in the example text; every `met` item quotes the draft; the endpoint is flagged missing; the draft has a demo URL and no agent endpoint; and `applyEvidenceCheck` leaves the saved example byte-for-byte unchanged.
   - **Verified in a real browser** (headless Chromium at 390×780 and 1280×900, with `/api/agent` intercepted): 44/44 checks — no horizontal scrolling, 45 px tall buttons, all states above. `tsc --noEmit` clean, `npm run build` exit 0, `npm test` **32 tests, 32 pass**.
 
+- **Step 2B chunk 2: reviewer README.** `README.md` rewritten (was a 13-byte stub): who it helps, how the review works step by step, the free-tier caveat (daily limits → a quota error is possible, the saved example always works), what it cannot verify, local run/test commands without a key, the production demo URL, the full endpoint URL, and the exact Step 2A curl request against `https://submitcheck-two.vercel.app/api/agent` with the success shape and the 400/429/502/503/504 error table.
+
 ## Next
 1. **Deploy this shell to Vercel Hobby** → capture the production URL, then re-run the curl check against it. (Blocked on GitHub/Vercel access — see below.)
 2. Then: live review (one server-side Gemini free-tier call, timeout, no retries; `GEMINI_API_KEY` only as a Vercel env var).
