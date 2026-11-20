@@ -6,7 +6,7 @@ SubmitCheck helps hackathon entrants catch missing submission requirements befor
 ## Stack and scope
 - Next.js (App Router) and TypeScript, deployed to Vercel Hobby on a stable public HTTPS production URL.
 - One server-side call per live review to a Gemini model available on the free tier. Confirm free access before integrating; do not enable paid billing or add a paid fallback.
-- Set `GEMINI_API_KEY` only in Vercel environment variables. Read it only in server-side code. Never put it in a local `.env`, repo, browser bundle, response, or logs; never prefix it with `NEXT_PUBLIC_`. Test real model calls on Vercel and use a stub for local tests.
+- Set `GEMINI_API_KEY` and `GEMINI_MODEL` only in Vercel environment variables. Read it only in server-side code. Never put it in a local `.env`, repo, browser bundle, response, or logs; never prefix it with `NEXT_PUBLIC_`. Test real model calls on Vercel and use a stub for local tests.
 - No accounts, database, browsing, link checks, or zkVerify integration. The evidence check confirms that a quote exists in the input, not that the agent's interpretation is correct.
 
 ## Features in priority order
@@ -32,7 +32,7 @@ SubmitCheck helps hackathon entrants catch missing submission requirements befor
 ```
 
 - `status` is exactly `met`, `missing`, or `unclear`. `quote` is one verbatim excerpt or `null`; `reason` is one short line. Optional suggestions are not mandatory requirements. A `met` verdict needs evidence from the draft, not merely wording copied from the rules. For `missing`, a quote from the rules can show what's required, not prove absence.
-- Validate the model output on the server. For every non-null quote, use an exact substring check against the original pasted text (draft only for `met`; rules or draft otherwise). If a quote fails that check, set `quote` to `null`, change `status` to `unclear`, and replace the reason with `The quoted evidence could not be found in the pasted text.` A `met` item without a quote also becomes `unclear` with a short explanation.
+- Validate the model output on the server. For every non-null quote, locate it in the original pasted text (draft only for `met`; rules or draft otherwise). Before comparing, trim, collapse runs of whitespace, and map curly single and double quotes to straight equivalents in both the quote and the source; keep case and other punctuation unchanged. On a match, return the original pasted excerpt, not the model's rewritten text. If a quote does not match, set `quote` to `null`, change `status` to `unclear`, and replace the reason with `The quoted evidence could not be found in the pasted text.` A `met` item without a usable quote also becomes `unclear` with a short explanation.
 - Reject invalid input with `400`. Return a clear JSON error if the model is unavailable, times out, exceeds its quota, or returns malformed data. Use a timeout and no automatic retries. Never silently substitute the saved example for a live review. Don't log pasted text; tell users to omit sensitive information.
 
 README example (replace `YOUR-PROJECT.vercel.app` with the production hostname):
