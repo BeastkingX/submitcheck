@@ -1,9 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
+  MAX_FUNCTION_DURATION_S,
   MAX_INPUT_CHARS,
   NOT_FOUND_REASON,
+  REQUEST_TIMEOUT_MS,
+  RETRY_BUDGET_MS,
   QUOTA_ERROR,
   SUBMITCHECK_SCHEMA,
   applyEvidenceCheck,
@@ -548,4 +552,20 @@ test("evidence check searches rules or draft for non-met statuses", () => {
 
   assert.equal(out[0].status, "unclear");
   assert.equal(out[0].quote, "“Hack Lagos 2026”");
+});
+
+test("both attempts plus overhead fit inside the route's function duration", () => {
+  assert.equal(RETRY_BUDGET_MS, 2 * REQUEST_TIMEOUT_MS + 10_000);
+  assert.ok(
+    RETRY_BUDGET_MS <= MAX_FUNCTION_DURATION_S * 1000,
+    `retry budget ${RETRY_BUDGET_MS}ms must fit inside maxDuration ${MAX_FUNCTION_DURATION_S}s`,
+  );
+  // Vercel Hobby's documented maximum function duration is 300 s.
+  assert.ok(MAX_FUNCTION_DURATION_S <= 300, "must stay inside the Hobby limit");
+  // The route must export this exact literal; Next.js rejects computed values.
+  const routeSource = readFileSync(
+    new URL("../src/app/api/agent/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(routeSource, new RegExp(`export const maxDuration = ${MAX_FUNCTION_DURATION_S};`));
 });

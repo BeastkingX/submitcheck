@@ -6,9 +6,14 @@ import { MAX_INPUT_CHARS } from "./limits.ts";
 
 export { MAX_INPUT_CHARS };
 
-// Per-attempt timeout. Two attempts + overhead must fit inside Vercel's Hobby
-// function duration (300 s default and maximum), so 30 s per attempt is safe.
+// Per-attempt timeout and the route's function duration. Vercel Hobby allows
+// 300 s; we set 90 s so that TWO 30 s attempts plus overhead comfortably fit,
+// leaving headroom before Vercel would kill the invocation (which would return
+// a platform 504 instead of our own JSON error).
 export const REQUEST_TIMEOUT_MS = 30_000;
+export const MAX_FUNCTION_DURATION_S = 90;
+/** Worst case for a retried request, plus a generous overhead allowance. */
+export const RETRY_BUDGET_MS = 2 * REQUEST_TIMEOUT_MS + 10_000;
 // Exactly one retry, and only for these provider statuses.
 export const RETRYABLE_PROVIDER_STATUSES = [500, 502, 503, 504] as const;
 export const MAX_REQUIREMENTS = 50;

@@ -3,8 +3,11 @@ import { handleAgentRequest } from "@/lib/agent";
 
 // Live review: validate input, call Gemini (one retry on 5xx), verify evidence.
 export const dynamic = "force-dynamic";
-// Vercel Hobby allows up to 300 s; two 30 s attempts plus overhead fit easily.
-export const maxDuration = 60;
+// Vercel Hobby allows up to 300 s. Two 30 s attempts plus overhead must fit,
+// so this is 90 s. Must stay a literal: Next.js statically analyses segment
+// config, so importing the value breaks the build. test/agent.test.ts asserts
+// RETRY_BUDGET_MS fits inside this number.
+export const maxDuration = 90;
 
 export async function POST(request: Request) {
   let rawBody: string;
