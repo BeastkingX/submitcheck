@@ -1,6 +1,6 @@
 # PROGRESS
 
-_Last updated: 2026-11-20 (Step 1 follow-up: build packaged as `submitcheck.bundle`)_
+_Last updated: 2026-11-20 (Step 1 follow-up: push/deploy blocked on missing authorization)_
 
 ## Done
 - `SPEC.md` — full kickoff spec, pasted verbatim (curly quotes and em dashes preserved).
@@ -23,6 +23,13 @@ _Last updated: 2026-11-20 (Step 1 follow-up: build packaged as `submitcheck.bund
 6. Reviewer README (who it helps, how it works, what it cannot verify, local run without a model key, production link, full endpoint URL, curl with real hostname).
 
 ## Blockers
+- **Access audit (2026-11-20, this step):**
+  - Arena **GitHub connector does not exist** (`list_connector_tools github` → `unsupported`), so no OAuth path to push.
+  - Arena **Vercel connector is disconnected** (`list_connector_tools vercel` → `disconnected`); it needs you to connect it before I can use it.
+  - Sandbox has **no git credential helper, no `gh`, no `vercel` CLI, and no GitHub/Vercel token in the environment** (checked env var names only, no values).
+  - Vercel API is reachable but unauthenticated: `GET https://api.vercel.com/v2/user` → `403 {"error":{"code":"forbidden","message":"The request is missing an authentication token","missingToken":true}}`.
+  - Remote `refs/heads/main` is still `95b28d4` (the original README-only commit) — **confirmed unchanged**, so no push has happened.
+  - Pasted chat token intentionally **not** used; it should be revoked.
 - **Push: still pending.** `git push origin main` fails here — no credentials in this sandbox (`fatal: could not read Username for 'https://github.com'`, exit 128). The pasted token was never written to a file or bundled. Workaround shipped: `submitcheck.bundle`.
 - **Deployment: still pending.** Nothing is live on Vercel; there is no production URL yet. Needs you to import the repo on Vercel Hobby.
 - **Remote already had history.** GitHub `BeastkingX/submitcheck` had one unrelated commit (`95b28d4 "Initial commit"`, only `README.md`). Merged in with `--allow-unrelated-histories` (merge commit `c3a79ea`) instead of force-pushing — nothing of yours was overwritten, so the bundle must be pushed with a normal (non-force) push.
