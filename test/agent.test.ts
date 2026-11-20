@@ -8,6 +8,7 @@ import {
   SUBMITCHECK_SCHEMA,
   applyEvidenceCheck,
   handleAgentRequest,
+  isRetryableStatus,
   normalizeForMatch,
   validateModelOutput,
 } from "../src/lib/agent.ts";
@@ -331,6 +332,156 @@ test("a timeout returns a clear JSON error without retrying", async () => {
   assert.equal(result.status, 504);
   assert.match((result.body as { error: string }).error, /timed out/);
   assert.equal(captured.calls, 1);
+});
+
+/**
+ * Like mockFetch, but the responder sees the 1-based attempt number so a test
+ * can make the first attempt fail and the second succeed.
+ */
+function mockSequence(responder: (attempt: number) => Response) {
+  const captured: Captured = { url: "", headers: {}, body: null, calls: 0 };
+  const fetchImpl = (async (url: unknown, init: unknown) => {
+    captured.calls += 1;
+    captured.url = String(url);
+    const options = init as { headers?: Record<string, string>; body?: string };
+    captured.headers = options?.headers ?? {};
+    captured.body = JSON.parse(options?.body ?? "{}");
+    return responder(captured.calls);
+  }) as unknown as typeof fetch;
+  return { fetchImpl, captured };
+}
+
+function sequenceRequest(responder: (attempt: number) => Response) {
+  const { fetchImpl, captured } = mockSequence(responder);
+  return {
+    captured,
+    request: {
+      rawBody: JSON.stringify({ rules: RULES, draft: DRAFT }),
+      env: { GEMINI_API_KEY: "test-key", GEMINI_MODEL: "test-model" },
+      fetchImpl,
+    },
+  };
+}
+
+const RETRYABLE = [500, 502, 503, 504];
+for (const status of RETRYABLE) {
+  test(`provider ${status} is retried exactly once and succeeds on the retry`, async () => {
+    const { request, captured } = sequenceRequest((attempt) =>
+      attempt === 1
+        ? jsonResponse({ error: { status: "UNAVAILABLE", message: "upstream" } }, status)
+        : geminiEnvelope({
+            requirements: [
+              {
+                requirement: "Include a public HTTPS agent endpoint.",
+                status: "met",
+                quote: "Demo page: https://example.com/",
+                reason: "The draft links the demo.",
+              },
+            ],
+          }),
+    );
+
+    const result = await handleAgentRequest(request);
+
+    assert.equal(result.status, 200);
+    assert.equal(captured.calls, 2, "exactly one retry");
+  });
+}
+
+test("two transient failures return 502 after exactly two attempts", async () => {
+  const { request, captured } = sequenceRequest(() =>
+    jsonResponse({ error: { status: "UNAVAILABLE", message: "upstream" } }, 503),
+  );
+
+  const result = await handleAgentRequest(request);
+
+  assert.equal(result.status, 502);
+  assert.equal(captured.calls, 2, "one retry, never more");
+  assert.deepEqual(result.body, {
+    error: "The live review model is unavailable right now. Please try again.",
+    detail: { providerStatus: 503, providerErrorStatus: "UNAVAILABLE" },
+  });
+});
+
+test("the retried result still goes through the evidence check", async () => {
+  const { request, captured } = sequenceRequest((attempt) =>
+    attempt === 1
+      ? jsonResponse({ error: { status: "UNAVAILABLE" } }, 503)
+      : geminiEnvelope({
+          requirements: [
+            {
+              requirement: "Include a public HTTPS agent endpoint.",
+              status: "met",
+              quote: "this sentence is not in the draft",
+              reason: "Trust me.",
+            },
+          ],
+        }),
+  );
+
+  const result = await handleAgentRequest(request);
+
+  assert.equal(captured.calls, 2);
+  assert.equal(result.status, 200);
+  const body = result.body as { requirements: Array<Record<string, unknown>> };
+  assert.deepEqual(body.requirements, [
+    {
+      requirement: "Include a public HTTPS agent endpoint.",
+      status: "unclear",
+      quote: null,
+      reason: NOT_FOUND_REASON,
+    },
+  ]);
+});
+
+test("429 is never retried", async () => {
+  const { request, captured } = sequenceRequest(() =>
+    jsonResponse({ error: { status: "RESOURCE_EXHAUSTED" } }, 429),
+  );
+
+  const result = await handleAgentRequest(request);
+
+  assert.equal(result.status, 429);
+  assert.equal(captured.calls, 1, "quota errors are not retried");
+});
+
+test("a provider 400 is never retried", async () => {
+  const { request, captured } = sequenceRequest(() =>
+    jsonResponse({ error: { status: "INVALID_ARGUMENT" } }, 400),
+  );
+
+  const result = await handleAgentRequest(request);
+
+  assert.equal(result.status, 502);
+  assert.equal(captured.calls, 1, "4xx is not retried");
+  assert.deepEqual(result.body, {
+    error: "The live review model is unavailable right now. Please try again.",
+    detail: { providerStatus: 400, providerErrorStatus: "INVALID_ARGUMENT" },
+  });
+});
+
+test("a network error is not retried", async () => {
+  const { fetchImpl, captured } = mockSequence(() => {
+    throw new TypeError("fetch failed");
+  });
+
+  const result = await handleAgentRequest({
+    rawBody: JSON.stringify({ rules: RULES, draft: DRAFT }),
+    env: { GEMINI_API_KEY: "test-key", GEMINI_MODEL: "test-model" },
+    fetchImpl,
+  });
+
+  assert.equal(result.status, 502);
+  assert.equal(captured.calls, 1, "network errors are not retried");
+});
+
+test("isRetryableStatus covers exactly 500/502/503/504", () => {
+  for (const status of [500, 502, 503, 504]) {
+    assert.equal(isRetryableStatus(status), true, `expected ${status} retryable`);
+  }
+  for (const status of [400, 401, 403, 404, 429, 501, 505]) {
+    assert.equal(isRetryableStatus(status), false, `expected ${status} not retryable`);
+  }
 });
 
 test("provider errors are not echoed to the client", async () => {

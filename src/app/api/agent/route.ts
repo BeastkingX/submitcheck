@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { handleAgentRequest } from "@/lib/agent";
 
-// Live review: validate input, make exactly one Gemini call, verify evidence.
+// Live review: validate input, call Gemini (one retry on 5xx), verify evidence.
 export const dynamic = "force-dynamic";
+// Vercel Hobby allows up to 300 s; two 30 s attempts plus overhead fit easily.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   let rawBody: string;

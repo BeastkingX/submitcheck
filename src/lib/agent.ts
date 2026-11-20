@@ -6,7 +6,11 @@ import { MAX_INPUT_CHARS } from "./limits.ts";
 
 export { MAX_INPUT_CHARS };
 
-export const REQUEST_TIMEOUT_MS = 15_000;
+// Per-attempt timeout. Two attempts + overhead must fit inside Vercel's Hobby
+// function duration (300 s default and maximum), so 30 s per attempt is safe.
+export const REQUEST_TIMEOUT_MS = 30_000;
+// Exactly one retry, and only for these provider statuses.
+export const RETRYABLE_PROVIDER_STATUSES = [500, 502, 503, 504] as const;
 export const MAX_REQUIREMENTS = 50;
 
 export const NOT_FOUND_REASON =
@@ -273,6 +277,11 @@ export class ReviewError extends Error {
   }
 }
 
+/** Transient provider failures worth exactly one retry. */
+export function isRetryableStatus(status: number): boolean {
+  return (RETRYABLE_PROVIDER_STATUSES as readonly number[]).includes(status);
+}
+
 /** Keep only a short canonical error-status token (e.g. "UNAVAILABLE"). */
 function readProviderErrorStatus(rawText: string): string | null {
   try {
@@ -361,25 +370,47 @@ export async function callGemini(options: GeminiOptions): Promise<Requirement[]>
 
   let response: Response;
   let rawText: string;
+  const send = async (): Promise<{ response: Response; rawText: string }> => {
+    try {
+      const attempt = await fetchImpl(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      return { response: attempt, rawText: await attempt.text() };
+    } catch (error) {
+      const aborted =
+        controller.signal.aborted ||
+        (error instanceof Error && error.name === "AbortError");
+      throw new ReviewError(
+        aborted ? "timeout" : "provider",
+        aborted ? "request timed out" : "provider request failed",
+      );
+    }
+  };
+
   try {
-    response = await fetchImpl(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    rawText = await response.text();
-  } catch (error) {
-    const aborted =
-      controller.signal.aborted ||
-      (error instanceof Error && error.name === "AbortError");
-    throw new ReviewError(
-      aborted ? "timeout" : "provider",
-      aborted ? "request timed out" : "provider request failed",
-    );
+    ({ response, rawText } = await send());
+
+    // Exactly ONE retry, and only when the provider itself failed with
+    // 500/502/503/504. A network error, a timeout, a 429, any other 4xx and
+    // malformed model output are never retried.
+    if (!response.ok && isRetryableStatus(response.status)) {
+      console.error(
+        "[submitcheck] retrying provider after",
+        JSON.stringify({ providerStatus: response.status }),
+      );
+      try {
+        ({ response, rawText } = await send());
+      } catch (error) {
+        // The retry's own failure (including a timeout) is reported as-is.
+        throw error;
+      }
+    }
   } finally {
     clearTimeout(timer);
   }

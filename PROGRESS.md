@@ -66,6 +66,14 @@ _Last updated: 2026-11-20 (Step 2B chunk 1: review page wired to the live API)_
 
 - **Step 4 part 1: 502 diagnostics.** Provider failures now carry a `detail` field in the 502 body — `{providerStatus, providerErrorStatus}` (e.g. `{"providerStatus": 503, "providerErrorStatus": "UNAVAILABLE"}`) — and the same two values are logged server-side via `console.error("[submitcheck] provider error", ...)`. The error-status token is only echoed when it looks like a canonical token (`/^[A-Z][A-Z0-9_]{0,39}$/`), so a substituted message string cannot leak. The API key, prompt, pasted text and full provider response are still never returned or logged. No model or retry change in this part.
 
+- **Step 4 part 2: diagnosis and one retry.**
+  - **What the 10 production calls showed** (README sample, ~3 s apart, after `c4510f2`): 1× `200`, 5× `504` (our 15 s timeout), 4× `502` with `detail = {"providerStatus": 503, "providerErrorStatus": "UNAVAILABLE"}`. So the failures are **transient provider unavailability**, not a rejected request setting and not something on our side.
+  - **Retry:** exactly one retry, and only for provider `500/502/503/504` (`isRetryableStatus`). Never for `429`, other `4xx`, timeouts, network errors, or malformed model output. The model and every request setting are unchanged.
+  - **Timeout:** `REQUEST_TIMEOUT_MS` raised 15 s → **30 s per attempt**, so a slow first attempt can still recover. Verified against Vercel's docs: Hobby's default **and maximum** function duration is **300 s** (vercel.com/docs/functions/limitations#max-duration, table "Hobby | 300s (5 minutes) | 300s (5 minutes)"), configured on App Router routes with a named `maxDuration` export (vercel.com/docs/functions/configuring-functions/duration). This route now exports `maxDuration = 60`, well inside the limit, and 2×30 s + overhead fits inside 60 s.
+  - **SPEC.md:** "no automatic retries" replaced with the one-retry rule above.
+  - **Tests:** 10 new stubbed tests (42 total, all passing) — each retryable status retried once then `200`; two `503`s → `502` after exactly two calls; the retried result still goes through the evidence check (an invented quote is still downgraded); `429` not retried; a provider `400` not retried; a network error not retried; `isRetryableStatus` covers exactly 500/502/503/504.
+  - The data shape of a `502` is unchanged apart from the diagnostic `detail` field added in part 1; the UI is untouched and renders the `error` string exactly as before.
+
 ## Next
 1. **Deploy this shell to Vercel Hobby** → capture the production URL, then re-run the curl check against it. (Blocked on GitHub/Vercel access — see below.)
 2. Then: live review (one server-side Gemini free-tier call, timeout, no retries; `GEMINI_API_KEY` only as a Vercel env var).
