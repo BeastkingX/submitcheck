@@ -40,6 +40,12 @@ _Last updated: 2026-11-20 (Step 2B chunk 1: review page wired to the live API)_
 
 - **Step 2B chunk 2: reviewer README.** `README.md` rewritten (was a 13-byte stub): who it helps, how the review works step by step, the free-tier caveat (daily limits → a quota error is possible, the saved example always works), what it cannot verify, local run/test commands without a key, the production demo URL, the full endpoint URL, and the exact Step 2A curl request against `https://submitcheck-two.vercel.app/api/agent` with the success shape and the 400/429/502/503/504 error table.
 
+- **Step 2B deployed and verified in production** (`36631e7`, `https://submitcheck-two.vercel.app/`).
+  - The same 44-check headless-browser script that ran locally was re-run against the deployed page with `/api/agent` intercepted: **44/44 pass** (no sideways scrolling at 390 px, 45 px tap targets, saved example makes zero API requests, edit clears the result, stale response dropped, API error text shown for 400/429/502/503, example still works offline).
+  - **Live review confirmed working:** a real, unintercepted review from the browser sent exactly one `POST /api/agent` with `{rules, draft}`, showed the loading state, then a **Live review** result with no saved-example label.
+  - `GEMINI_API_KEY` / `GEMINI_MODEL` are now set in Vercel Production by the user, and `gemini-3.1-flash-lite` **accepts** `thinkingConfig: {thinkingLevel: "MINIMAL"}` and the `responseJsonSchema` object form — every live call has returned `200` with schema-conforming JSON.
+  - The README curl returns **200** with the fixed shape, and the over-limit case returns **400** `{"error":"`rules` must be at most 10000 characters."}`.
+
 ## Next
 1. **Deploy this shell to Vercel Hobby** → capture the production URL, then re-run the curl check against it. (Blocked on GitHub/Vercel access — see below.)
 2. Then: live review (one server-side Gemini free-tier call, timeout, no retries; `GEMINI_API_KEY` only as a Vercel env var).
@@ -55,9 +61,10 @@ _Last updated: 2026-11-20 (Step 2B chunk 1: review page wired to the live API)_
 - **Superseded:** the old plan to hand-push a `.bundle`, and the stale note that remote `main` was `95b28d4`. Both are resolved.
 
 ## Known bugs / untested
-- **Step 2A not yet verified against the real model.** Validation, config, timeout and evidence logic are verified with a stubbed provider (27 tests), a local production build, and **production** probes. The live Gemini call (`gemini-3.1-flash-lite`), its real JSON output/schema conformance, and a real 429 are **untested** until `GEMINI_API_KEY` and `GEMINI_MODEL` are set in Vercel Production and the project redeploys.
-- **`thinkingLevel: "MINIMAL"` shape is from the current REST reference**; untested against the live model. If the model rejects it, the call returns a clean 502 (no retry, no switch).
-- **`responseJsonSchema` is sent as-is** (object form documented in the REST reference). Untested whether `gemini-3.1-flash-lite` honours it exactly; output is re-validated server-side regardless.
+- **The live model call now works in production** (see above), but only a handful of inputs have been run through it by hand. Nothing fuzzes or evaluates the model's judgement.
+- **Model quality, not a bug:** with a rules-only input (`"Include a public HTTPS agent endpoint."` / `"Demo page: https://example.com/"`) the model marked the requirement `met`, quoting the bare `https://example.com/` as the agent endpoint. The quote is genuine, so the evidence check passes by design — this is the "confirms a quote exists, not that the interpretation is correct" limit stated in SPEC.md and the README. Richer prompts are judged better (a draft that said "Agent endpoint: … returns JSON" was correctly `met`; one that said "No endpoint yet." was correctly `missing`).
+- **`thinkingLevel: "MINIMAL"` and the `responseJsonSchema` object form are accepted by `gemini-3.1-flash-lite`** in production. Output is still re-validated server-side on every call.
+- **Still untested:** a real **429** (deliberately never exhausted live quota — the path is covered only by the stubbed test) and a real **504** timeout path in production.
 - **Tests run on Node 24 only** (repo dev sandbox default is Node 20; `node --test` with TypeScript stripping needs ≥22.18/24). `npm test` on Node 24 passes; on Node 20 it will fail to strip types.
-- **UI still shows the Step 1 placeholder** ("Not ready … responds with 503"), which is now stale; Step 2B replaces it.
-- **Other untested:** whether Vercel's Node 24 runtime and the 15 s timeout interact with the function timeout as expected; response caching (route is `force-dynamic`).
+- **Partially untested:** whether a 15 s model call fits inside Vercel's function timeout (all observed live calls returned well inside it); response caching (route is `force-dynamic`).
+- **Note for future work:** this sandbox snapshot lost `.git/config` and `node_modules/` between sessions; the remote was re-added as `origin` and `npm ci` re-run. Nothing else was affected.
