@@ -1,6 +1,6 @@
 # PROGRESS
 
-_Last updated: 2026-11-20 (Step 2A: live review API pushed and deployed)_
+_Last updated: 2026-11-20 (Step 2B chunk 1: review page wired to the live API)_
 
 ## Done
 - `SPEC.md` — full kickoff spec, pasted verbatim (curly quotes and em dashes preserved).
@@ -26,6 +26,17 @@ _Last updated: 2026-11-20 (Step 2A: live review API pushed and deployed)_
 - **Repo pushed to GitHub.** `main` pushed to `BeastkingX/submitcheck` (no force); `vercel.json` removed in favour of Vercel's auto-detected Next.js preset. Commits now authored as `BeastkingX <205349110+BeastkingX@users.noreply.github.com>`.
 - **Removed `vercel.json`.** It only set `framework: "nextjs"`, which Vercel detects automatically; nothing else referenced it.
 - **Step 1 follow-up: packaged the verified build as `submitcheck.bundle`** for a push from outside this sandbox. Bundle contains `main` = kickoff commit → scaffold commit → merge commit (including the original GitHub `Initial commit` lineage). Verified with `git bundle verify` and by cloning into a fresh temp folder.
+
+- **Step 2B chunk 1: review page and bundled example.**
+  - `src/app/review-form.tsx` (client component) — labelled **Event rules** / **Draft submission** textareas (`maxLength` 10,000 + live character counter), **Check submission** and **Load example** buttons. Both fields are held in React state, so the page reads them at submit time and every edit re-renders deterministically (checking by hand with a browser showed the same values).
+  - **Check submission** POSTs `{rules, draft}` to `/api/agent`. While pending: button disabled + label **Checking…**, spinner and "Reviewing your submission…" with `role="status"`. Each submission takes a sequence number and an `AbortController`; editing either field or clicking **Load example** bumps the sequence and aborts, so an in-flight response can never land on edited text or overwrite the saved example. Duplicate submits are ignored.
+  - Results show the status **word** plus a symbol (`✓ Met`, `✗ Missing`, `? Unclear`), the requirement, a one-line reason, and the quote in a `<blockquote>` when present. Colour only reinforces the word.
+  - Errors show the API's own message verbatim, prefixed with the status code (verified for 400/429/502/503), plus a clear message when the network fails. The saved example is never substituted for a failed live review.
+  - **Load example** takes a bundled `EXAMPLE_RESULT` from `src/lib/example.ts` and renders it instantly with the label **Saved example — not a live review**. No `fetch` at all (verified: 0 requests to `/api/agent`), and it works with the network offline. The example draft has a demo URL and no agent endpoint, and the result flags the endpoint as **missing**.
+  - Visible privacy line: “Don't paste private or sensitive information. Pasted text is sent to an AI model (Google Gemini, free tier) to produce the review.” The limitations note is unchanged and verbatim. The old "Not ready"/503 block is gone, and the page now describes the working tool.
+  - `src/lib/limits.ts` — holds `MAX_INPUT_CHARS` only, so the browser bundle gets the cap without pulling in the server prompt code. `src/lib/agent.ts` re-exports it (API contract unchanged).
+  - `test/example.test.ts` — 5 tests: every example quote appears verbatim in the example text; every `met` item quotes the draft; the endpoint is flagged missing; the draft has a demo URL and no agent endpoint; and `applyEvidenceCheck` leaves the saved example byte-for-byte unchanged.
+  - **Verified in a real browser** (headless Chromium at 390×780 and 1280×900, with `/api/agent` intercepted): 44/44 checks — no horizontal scrolling, 45 px tall buttons, all states above. `tsc --noEmit` clean, `npm run build` exit 0, `npm test` **32 tests, 32 pass**.
 
 ## Next
 1. **Deploy this shell to Vercel Hobby** → capture the production URL, then re-run the curl check against it. (Blocked on GitHub/Vercel access — see below.)

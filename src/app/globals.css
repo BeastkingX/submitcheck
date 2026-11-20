@@ -62,26 +62,6 @@ h1 {
   margin: 0 0 0.6rem;
 }
 
-.status {
-  display: flex;
-  gap: 0.6rem;
-  align-items: baseline;
-  margin: 0;
-}
-
-.badge {
-  flex: none;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7a4a00;
-  background: var(--note-bg);
-  border: 1px solid var(--note-line);
-  border-radius: 999px;
-  padding: 0.1rem 0.55rem;
-}
-
 .limits {
   background: var(--note-bg);
   border: 1px solid var(--note-line);
@@ -108,4 +88,268 @@ a {
   color: var(--muted);
   font-size: 0.9rem;
   margin-top: 2rem;
+}
+
+/* ---- Review form ---- */
+
+.field {
+  margin-bottom: 1.1rem;
+}
+
+.field label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.counter {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+}
+
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.privacy {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0 0 1.1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+button {
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.6rem 1.1rem;
+  min-height: 2.75rem; /* comfortable tap target on phones */
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+button.secondary {
+  background: #fff;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.output {
+  margin-top: 1.5rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
+.spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+.error {
+  background: #fdf1f1;
+  border: 1px solid #e3b4b4;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+}
+
+.results {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.results h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.saved-label {
+  display: inline-block;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: #7a4a00;
+  background: var(--note-bg);
+  border: 1px solid var(--note-line);
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  text-transform: none;
+}
+
+.saved-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.requirements {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.requirement {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  overflow-wrap: anywhere;
+}
+
+.requirement:has(.status-met) {
+  border-left-color: #1a7f45;
+}
+
+.requirement:has(.status-missing) {
+  border-left-color: #b4261f;
+}
+
+.requirement:has(.status-unclear) {
+  border-left-color: #8a5a00;
+}
+
+.requirement-head {
+  margin: 0 0 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: baseline;
+}
+
+.requirement-text {
+  font-weight: 600;
+  flex: 1 1 12rem;
+}
+
+.status-tag {
+  flex: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+  border: 1px solid;
+}
+
+/* The status word is always spelled out; colour only reinforces it. */
+.status-met {
+  color: #10603a;
+  background: #e8f6ee;
+  border-color: #a8d8bd;
+}
+
+.status-missing {
+  color: #8a1c16;
+  background: #fdeeed;
+  border-color: #e8b4b0;
+}
+
+.status-unclear {
+  color: #6d4700;
+  background: var(--note-bg);
+  border-color: var(--note-line);
+}
+
+.reason {
+  margin: 0 0 0.45rem;
+  font-size: 0.93rem;
+}
+
+.quote {
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (max-width: 30rem) {
+  main {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .tagline {
+    margin-bottom: 1.5rem;
+  }
+
+  .actions button {
+    flex: 1 1 100%;
+  }
+
+  .requirement {
+    padding: 0.75rem 0.8rem;
+  }
 }

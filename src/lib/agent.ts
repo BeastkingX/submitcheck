@@ -2,7 +2,10 @@
 // and the evidence check. Kept free of Next.js imports so it can be unit
 // tested with `node --test`.
 
-export const MAX_INPUT_CHARS = 10_000;
+import { MAX_INPUT_CHARS } from "./limits.ts";
+
+export { MAX_INPUT_CHARS };
+
 export const REQUEST_TIMEOUT_MS = 15_000;
 export const MAX_REQUIREMENTS = 50;
 
