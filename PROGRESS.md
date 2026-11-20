@@ -46,6 +46,9 @@ _Last updated: 2026-11-20 (Step 2B chunk 1: review page wired to the live API)_
   - `GEMINI_API_KEY` / `GEMINI_MODEL` are now set in Vercel Production by the user, and `gemini-3.1-flash-lite` **accepts** `thinkingConfig: {thinkingLevel: "MINIMAL"}` and the `responseJsonSchema` object form — every live call has returned `200` with schema-conforming JSON.
   - The README curl returns **200** with the fixed shape, and the over-limit case returns **400** `{"error":"`rules` must be at most 10000 characters."}`.
 
+- **README curl sample fixed.** The old sample (`"Include a public HTTPS agent endpoint."` / `"Demo page: https://example.com/"`) returned **`met`** on production — the model quoted `https://example.com/` as the agent endpoint, which is the interpretation limit, not a bug, but it made the README wrong. Replaced with `rules: "Include a public HTTPS agent endpoint. Submit a demo video link."` / `draft: "Demo page: https://example.com/. No agent endpoint yet."`, run **3× against production** (`2026-11-20`): every run returned `200` with the endpoint requirement `missing` and the video requirement `missing`. README now shows that sample output and notes that `quote`/`reason` wording varies per run while the statuses hold.
+- **Saved example left unchanged.** It already flags a missing agent endpoint with quotes that verify verbatim, so the new sample input does not affect it and `test/example.test.ts` is untouched.
+
 ## Next
 1. **Deploy this shell to Vercel Hobby** → capture the production URL, then re-run the curl check against it. (Blocked on GitHub/Vercel access — see below.)
 2. Then: live review (one server-side Gemini free-tier call, timeout, no retries; `GEMINI_API_KEY` only as a Vercel env var).

@@ -77,10 +77,10 @@ To run a live review locally you would need a key, but this project deliberately
 ```sh
 curl -sS -X POST 'https://submitcheck-two.vercel.app/api/agent' \
   -H 'Content-Type: application/json' \
-  --data '{"rules":"Include a public HTTPS agent endpoint.","draft":"Demo page: https://example.com/"}'
+  --data '{"rules":"Include a public HTTPS agent endpoint. Submit a demo video link.","draft":"Demo page: https://example.com/. No agent endpoint yet."}'
 ```
 
-A successful response (`200`) uses this fixed shape — one entry per extracted requirement:
+A successful response (`200`) uses this fixed shape — one entry per extracted requirement. This sample input returns `missing` for both requirements:
 
 ```json
 {
@@ -88,14 +88,20 @@ A successful response (`200`) uses this fixed shape — one entry per extracted 
     {
       "requirement": "Include a public HTTPS agent endpoint.",
       "status": "missing",
-      "quote": "Include a public HTTPS agent endpoint.",
-      "reason": "The draft lists a demo page but does not name an agent endpoint."
+      "quote": "No agent endpoint yet.",
+      "reason": "The draft explicitly states that an agent endpoint has not been provided."
+    },
+    {
+      "requirement": "Submit a demo video link.",
+      "status": "missing",
+      "quote": null,
+      "reason": "The draft contains a demo page link, not a demo video link."
     }
   ]
 }
 ```
 
-`status` is exactly `met`, `missing`, or `unclear`; `quote` is one verbatim excerpt from your text or `null`; `reason` is one short line.
+`status` is exactly `met`, `missing`, or `unclear`; `quote` is one verbatim excerpt from your text or `null`; `reason` is one short line. The model rewords and reorders freely between calls, so `quote` and `reason` will differ each run — the statuses are the stable part.
 
 Errors are JSON too, with a short `error` message:
 
