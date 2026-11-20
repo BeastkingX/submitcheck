@@ -1,6 +1,6 @@
 # PROGRESS
 
-_Last updated: 2026-11-20 (Step 1: minimal shell scaffolded and verified locally)_
+_Last updated: 2026-11-20 (Step 1 follow-up: build packaged as `submitcheck.bundle`)_
 
 ## Done
 - `SPEC.md` — full kickoff spec, pasted verbatim (curly quotes and em dashes preserved).
@@ -12,6 +12,8 @@ _Last updated: 2026-11-20 (Step 1: minimal shell scaffolded and verified locally
   - `npm run build` passes; `tsc --noEmit` passes.
   - **Verified locally** on a production build (`next start`): page `200` with title + note, endpoint `503` with the exact JSON body.
 
+- **Step 1 follow-up: packaged the verified build as `submitcheck.bundle`** for a push from outside this sandbox. Bundle contains `main` = kickoff commit → scaffold commit → merge commit (including the original GitHub `Initial commit` lineage). Verified with `git bundle verify` and by cloning into a fresh temp folder.
+
 ## Next
 1. **Deploy this shell to Vercel Hobby** → capture the production URL, then re-run the curl check against it. (Blocked on GitHub/Vercel access — see below.)
 2. Then: live review (one server-side Gemini free-tier call, timeout, no retries; `GEMINI_API_KEY` only as a Vercel env var).
@@ -21,10 +23,10 @@ _Last updated: 2026-11-20 (Step 1: minimal shell scaffolded and verified locally
 6. Reviewer README (who it helps, how it works, what it cannot verify, local run without a model key, production link, full endpoint URL, curl with real hostname).
 
 ## Blockers
-- **Push blocked (verified).** `git push origin main` → `fatal: could not read Username for 'https://github.com': No such device or address` (exit 128). No credential helper or token exists in this sandbox, and the pasted token must not be written into any file, commit, or log — so the push needs you. Exact command is below.
-- **Remote already had history.** GitHub `BeastkingX/submitcheck` had one unrelated commit (`95b28d4 "Initial commit"`, containing only `README.md`). Merged it in (`--allow-unrelated-histories`, merge commit `26ee724`) instead of force-pushing, so nothing was overwritten.
-- **No deployment yet.** Vercel deploy needs your account (import the repo, or a Vercel token). Nothing is live; there is no production URL yet.
-- **Token hygiene:** the token was pasted in chat, so it is in the transcript. Rotate it after this step, and keep it scoped to this one repo.
+- **Push: still pending.** `git push origin main` fails here — no credentials in this sandbox (`fatal: could not read Username for 'https://github.com'`, exit 128). The pasted token was never written to a file or bundled. Workaround shipped: `submitcheck.bundle`.
+- **Deployment: still pending.** Nothing is live on Vercel; there is no production URL yet. Needs you to import the repo on Vercel Hobby.
+- **Remote already had history.** GitHub `BeastkingX/submitcheck` had one unrelated commit (`95b28d4 "Initial commit"`, only `README.md`). Merged in with `--allow-unrelated-histories` (merge commit `c3a79ea`) instead of force-pushing — nothing of yours was overwritten, so the bundle must be pushed with a normal (non-force) push.
+- **Token hygiene:** the token was pasted in chat, so it is in the transcript. Rotate it after this step and keep it scoped to this one repo.
 
 ## Known bugs / untested
 - Page and API are verified locally only, **not** on production (nothing is live).
