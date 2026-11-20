@@ -255,13 +255,33 @@ export function buildPrompt(input: { rules: string; draft: string }): string {
   ].join("\n");
 }
 
+export type ProviderDetail = {
+  providerStatus: number;
+  providerErrorStatus: string | null;
+};
+
 export class ReviewError extends Error {
   code: string;
+  /** Only ever provider status codes — never bodies, keys, or pasted text. */
+  detail?: ProviderDetail;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, detail?: ProviderDetail) {
     super(message);
     this.name = "ReviewError";
     this.code = code;
+    if (detail) this.detail = detail;
+  }
+}
+
+/** Keep only a short canonical error-status token (e.g. "UNAVAILABLE"). */
+function readProviderErrorStatus(rawText: string): string | null {
+  try {
+    const payload = JSON.parse(rawText) as { error?: { status?: unknown } };
+    const status = payload.error?.status;
+    if (typeof status !== "string") return null;
+    return /^[A-Z][A-Z0-9_]{0,39}$/.test(status) ? status : null;
+  } catch {
+    return null;
   }
 }
 
@@ -365,21 +385,20 @@ export async function callGemini(options: GeminiOptions): Promise<Requirement[]>
   }
 
   if (!response.ok) {
-    // Provider error bodies are inspected only for the quota signal; they are
-    // never returned to the client or logged.
-    let resourceExhausted = false;
-    try {
-      const errorPayload = JSON.parse(rawText) as {
-        error?: { status?: unknown };
-      };
-      resourceExhausted = errorPayload.error?.status === "RESOURCE_EXHAUSTED";
-    } catch {
-      resourceExhausted = false;
-    }
-    if (response.status === 429 || resourceExhausted) {
+    // The provider body is inspected only for two short signals: its error
+    // status token (for quota detection and diagnostics) and nothing else.
+    // The body itself is never returned to the client or logged.
+    const providerErrorStatus = readProviderErrorStatus(rawText);
+    if (response.status === 429 || providerErrorStatus === "RESOURCE_EXHAUSTED") {
       throw new ReviewError("quota", "provider quota or rate limit");
     }
-    throw new ReviewError("provider", "provider returned an error");
+    const detail: ProviderDetail = {
+      providerStatus: response.status,
+      providerErrorStatus,
+    };
+    // Diagnostics only: two status codes. No key, no prompt, no pasted text.
+    console.error("[submitcheck] provider error", JSON.stringify(detail));
+    throw new ReviewError("provider", "provider returned an error", detail);
   }
 
   let envelope: unknown;
@@ -421,7 +440,12 @@ function errorResult(error: ReviewError): AgentResult {
     case "timeout":
       return { status: 504, body: { error: TIMEOUT_ERROR } };
     case "provider":
-      return { status: 502, body: { error: PROVIDER_ERROR } };
+      return {
+        status: 502,
+        body: error.detail
+          ? { error: PROVIDER_ERROR, detail: error.detail }
+          : { error: PROVIDER_ERROR },
+      };
     case "malformed":
       return { status: 502, body: { error: MALFORMED_ERROR } };
     default:

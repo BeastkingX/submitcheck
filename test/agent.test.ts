@@ -343,8 +343,14 @@ test("provider errors are not echoed to the client", async () => {
 
   assert.equal(result.status, 502);
   const serialized = JSON.stringify(result.body);
+  // The provider's message and the request itself never leak...
   assert.doesNotMatch(serialized, /upstream detail/);
-  assert.doesNotMatch(serialized, /INVALID_ARGUMENT/);
+  assert.doesNotMatch(serialized, /test-key|test-model|Include a public/);
+  // ...only the two short diagnostic fields appear.
+  assert.deepEqual(result.body, {
+    error: "The live review model is unavailable right now. Please try again.",
+    detail: { providerStatus: 400, providerErrorStatus: "INVALID_ARGUMENT" },
+  });
 });
 
 test("missing configuration returns 503 without calling the provider", async (t) => {
