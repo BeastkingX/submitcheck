@@ -1,6 +1,6 @@
 # PROGRESS
 
-_Last updated: 2026-11-20 (Step 1 follow-up: push/deploy blocked on missing authorization)_
+_Last updated: 2026-11-20 (Step 1 follow-up: Vercel connected, deploy attempted, blocked by two issues)_
 
 ## Done
 - `SPEC.md` — full kickoff spec, pasted verbatim (curly quotes and em dashes preserved).
@@ -23,42 +23,15 @@ _Last updated: 2026-11-20 (Step 1 follow-up: push/deploy blocked on missing auth
 6. Reviewer README (who it helps, how it works, what it cannot verify, local run without a model key, production link, full endpoint URL, curl with real hostname).
 
 ## Blockers
-- **Access audit (2026-11-20, this step):**
-  - Arena **GitHub connector does not exist** (`list_connector_tools github` → `unsupported`), so no OAuth path to push.
-  - Arena **Vercel connector is disconnected** (`list_connector_tools vercel` → `disconnected`); it needs you to connect it before I can use it.
-  - Sandbox has **no git credential helper, no `gh`, no `vercel` CLI, and no GitHub/Vercel token in the environment** (checked env var names only, no values).
-  - Vercel API is reachable but unauthenticated: `GET https://api.vercel.com/v2/user` → `403 {"error":{"code":"forbidden","message":"The request is missing an authentication token","missingToken":true}}`.
-  - Remote `refs/heads/main` is still `95b28d4` (the original README-only commit) — **confirmed unchanged**, so no push has happened.
-  - Pasted chat token intentionally **not** used; it should be revoked.
-- **Push: still pending.** `git push origin main` fails here — no credentials in this sandbox (`fatal: could not read Username for 'https://github.com'`, exit 128). The pasted token was never written to a file or bundled. Workaround shipped: `submitcheck.bundle`.
-- **Deployment: still pending.** Nothing is live on Vercel; there is no production URL yet. Needs you to import the repo on Vercel Hobby.
-- **Remote already had history.** GitHub `BeastkingX/submitcheck` had one unrelated commit (`95b28d4 "Initial commit"`, only `README.md`). Merged in with `--allow-unrelated-histories` (merge commit `c3a79ea`) instead of force-pushing — nothing of yours was overwritten, so the bundle must be pushed with a normal (non-force) push.
-- **Token hygiene:** the token was pasted in chat, so it is in the transcript. Rotate it after this step and keep it scoped to this one repo.
+- **Deployment: blocked by two independent issues (both verified this step).**
+  1. **Vercel Deployment Protection (needs you).** Project `submitcheck` (`prj_RhtONB7KGZzYJq3fKniNW90HLiVe`, team `beastkingxs-projects`, hobby) uses protection `all_except_custom_domains`. Verified anonymously: `GET https://submitcheck-beastkingxs-projects.vercel.app/` returns **302 "Protected by Vercel Authentication"**, and `POST /api/agent` returns **401** with `{"protection":{"vercel_auth_enabled":true,...}}`. A correct build still won't be public until you set Settings -> Deployment Protection -> Vercel Authentication: **Disabled**.
+  2. **Arena Vercel connector bug (blocks file-based Next builds).** `create_deployment` rejects any `files[].data` whose content **starts with `{`**: HTTP 400 `files[0].data should be string` (reported as `files[1]` when it is the second entry). Verified: `{"a":1}` fails; JS containing `{ a: 1 }`, `[{...}][0]`, leading-newline, and interleaved U+FEFF all pass, and BOM-prefixed JSON then fails at build with `enoent: Unexpected token '\ufeff'`. So `package.json`, `package-lock.json` and `tsconfig.json` cannot be uploaded, and a buildable Next.js deploy can't be assembled through the connector without a workaround I won't apply silently (splitting JSON across files and reassembling it in the build command).
+- **Milestone not met.** Neither the title+limitations page nor the 503 JSON is live; both are blocked by the items above.
+- **Cleanup done.** Debugging produced 17 test deployments (several `target: production`). **All 15 non-original ones were deleted**, including the stub that had taken the production alias. The project's production deployment is back to the original README-only build `dpl_7JhrA2jTbP32b13rHWYTisvAnrHN` (`95b28d4`).
+- **Alias state after cleanup:** `submitcheck-two.vercel.app` -> **404 DEPLOYMENT_NOT_FOUND**; `submitcheck-beastkingxs-projects.vercel.app` -> **302 (protection)**. The original deployment is still listed READY with those aliases attached; a fresh deployment should re-establish the alias.
+- **Push: still pending.** No GitHub write credential in this sandbox (`list_connector_tools github` -> `unsupported`; anonymous `git ls-remote` shows remote `main` still `95b28d4`). The token pasted earlier was not used and should be revoked.
 
 ## Known bugs / untested
-- Page and API are verified locally only, **not** on production (nothing is live).
-- Next 16 rewrote `tsconfig.json` on first build (`jsx: react-jsx`, added `.next/dev/types` to `include`); `tsconfig.tsbuildinfo` is generated and left untracked/ignored.
-- Free-tier Gemini model choice not yet confirmed (must verify free access before integrating; no paid fallback allowed).
-- `GEMINI_API_KEY` not set anywhere yet (deferred to the live-review step).
-
-## Exact commands for you (push + verify the remote)
-
-```sh
-# from a clone of the repo, with your token available to git (not written to a file):
-cd submitcheck
-git add -A && git commit -m "wip"   # only if needed
-git push origin main
-
-# verify what landed on GitHub
-git ls-remote --heads origin main
-```
-
-Then, once Vercel is connected, verify production:
-
-```sh
-curl -i -X POST 'https://YOUR-PROJECT.vercel.app/api/agent' \
-  -H 'Content-Type: application/json' \
-  --data '{"rules":"Include a public HTTPS agent endpoint.","draft":"Demo page: https://example.com/"}'
-
-# expect: HTTP/2 503 and {"error":"Live review is not ready yet."}
-```
+- **Local build verified; production build never verified.** This exact file set built locally with no `package.json` (`next build` -> `/`, `/_not-found`, `f /api/agent`), but no production deployment of it has succeeded, because of the connector bug above.
+- **Local test was JS-only.** Repo sources are `.tsx`/`.ts`; the only verified local build used `.jsx`/`.js` (tsconfig is unparseable when BOM-prefixed), so type errors could still appear on a real Vercel build.
+- **Content drift in the tested variant:** the locally built `page.jsx` rendered the em dash as a period ("unclear. with quotes") and a shortened status line. Repo source remains authoritative.
