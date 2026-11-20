@@ -1,6 +1,6 @@
 # PROGRESS
 
-_Last updated: 2026-11-20 (Step 1 follow-up: Vercel connected, deploy attempted, blocked by two issues)_
+_Last updated: 2026-11-20 (repo pushed to GitHub; vercel.json removed)_
 
 ## Done
 - `SPEC.md` — full kickoff spec, pasted verbatim (curly quotes and em dashes preserved).
@@ -12,6 +12,8 @@ _Last updated: 2026-11-20 (Step 1 follow-up: Vercel connected, deploy attempted,
   - `npm run build` passes; `tsc --noEmit` passes.
   - **Verified locally** on a production build (`next start`): page `200` with title + note, endpoint `503` with the exact JSON body.
 
+- **Repo pushed to GitHub.** `main` pushed to `BeastkingX/submitcheck` (no force); `vercel.json` removed in favour of Vercel's auto-detected Next.js preset. Commits now authored as `BeastkingX <205349110+BeastkingX@users.noreply.github.com>`.
+- **Removed `vercel.json`.** It only set `framework: "nextjs"`, which Vercel detects automatically; nothing else referenced it.
 - **Step 1 follow-up: packaged the verified build as `submitcheck.bundle`** for a push from outside this sandbox. Bundle contains `main` = kickoff commit → scaffold commit → merge commit (including the original GitHub `Initial commit` lineage). Verified with `git bundle verify` and by cloning into a fresh temp folder.
 
 ## Next
@@ -23,15 +25,11 @@ _Last updated: 2026-11-20 (Step 1 follow-up: Vercel connected, deploy attempted,
 6. Reviewer README (who it helps, how it works, what it cannot verify, local run without a model key, production link, full endpoint URL, curl with real hostname).
 
 ## Blockers
-- **Deployment: blocked by two independent issues (both verified this step).**
-  1. **Vercel Deployment Protection (needs you).** Project `submitcheck` (`prj_RhtONB7KGZzYJq3fKniNW90HLiVe`, team `beastkingxs-projects`, hobby) uses protection `all_except_custom_domains`. Verified anonymously: `GET https://submitcheck-beastkingxs-projects.vercel.app/` returns **302 "Protected by Vercel Authentication"**, and `POST /api/agent` returns **401** with `{"protection":{"vercel_auth_enabled":true,...}}`. A correct build still won't be public until you set Settings -> Deployment Protection -> Vercel Authentication: **Disabled**.
-  2. **Arena Vercel connector bug (blocks file-based Next builds).** `create_deployment` rejects any `files[].data` whose content **starts with `{`**: HTTP 400 `files[0].data should be string` (reported as `files[1]` when it is the second entry). Verified: `{"a":1}` fails; JS containing `{ a: 1 }`, `[{...}][0]`, leading-newline, and interleaved U+FEFF all pass, and BOM-prefixed JSON then fails at build with `enoent: Unexpected token '\ufeff'`. So `package.json`, `package-lock.json` and `tsconfig.json` cannot be uploaded, and a buildable Next.js deploy can't be assembled through the connector without a workaround I won't apply silently (splitting JSON across files and reassembling it in the build command).
-- **Milestone not met.** Neither the title+limitations page nor the 503 JSON is live; both are blocked by the items above.
-- **Cleanup done.** Debugging produced 17 test deployments (several `target: production`). **All 15 non-original ones were deleted**, including the stub that had taken the production alias. The project's production deployment is back to the original README-only build `dpl_7JhrA2jTbP32b13rHWYTisvAnrHN` (`95b28d4`).
-- **Alias state after cleanup:** `submitcheck-two.vercel.app` -> **404 DEPLOYMENT_NOT_FOUND**; `submitcheck-beastkingxs-projects.vercel.app` -> **302 (protection)**. The original deployment is still listed READY with those aliases attached; a fresh deployment should re-establish the alias.
-- **Push: still pending.** No GitHub write credential in this sandbox (`list_connector_tools github` -> `unsupported`; anonymous `git ls-remote` shows remote `main` still `95b28d4`). The token pasted earlier was not used and should be revoked.
+- **Repo is pushed.** `main` on GitHub is `1f7414745e9379e93dfbe3d64b1fadec0da93f76`; the GitHub-linked Vercel project auto-deploys from `main` (owned by the user, not verified from here).
+- **Deployment Protection (needs you).** As of the last anonymous check, the project used protection `all_except_custom_domains`, so the page returned **302 "Protected by Vercel Authentication"** and `POST /api/agent` returned **401**. Not re-checked after this push; if it still applies, set Settings -> Deployment Protection -> Vercel Authentication: **Disabled** so the demo is public.
+- **Arena Vercel connector bug (no longer on the critical path).** `create_deployment` rejects any `files[].data` starting with `{` (`400 files[0].data should be string`), so JSON manifests could not be uploaded. Git-triggered deploys avoid this path entirely.
+- **Superseded:** the old plan to hand-push a `.bundle`, and the stale note that remote `main` was `95b28d4`. Both are resolved.
 
 ## Known bugs / untested
-- **Local build verified; production build never verified.** This exact file set built locally with no `package.json` (`next build` -> `/`, `/_not-found`, `f /api/agent`), but no production deployment of it has succeeded, because of the connector bug above.
-- **Local test was JS-only.** Repo sources are `.tsx`/`.ts`; the only verified local build used `.jsx`/`.js` (tsconfig is unparseable when BOM-prefixed), so type errors could still appear on a real Vercel build.
-- **Content drift in the tested variant:** the locally built `page.jsx` rendered the em dash as a period ("unclear. with quotes") and a shortened status line. Repo source remains authoritative.
+- **Production verification is outstanding.** No post-push deploy has been observed from here: the page, the limitations note, and `503 {"error":"Live review is not ready yet."}` are verified locally only.
+- **Other untested items:** alias state after the earlier cleanup (`submitcheck-two.vercel.app` was 404); Node 26 on Vercel vs Node 20 locally; whether Vercel's Next.js preset still auto-detects without `vercel.json` (it is documented to).
