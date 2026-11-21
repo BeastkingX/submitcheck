@@ -101,7 +101,7 @@ A successful response (`200`) uses this fixed shape — one entry per extracted 
 }
 ```
 
-`status` is exactly `met`, `missing`, or `unclear`; `quote` is one verbatim excerpt from your text or `null`; `reason` is one short line. The model rewords and reorders freely between calls, so `quote` and `reason` will differ each run — the statuses are the stable part.
+`status` is exactly `met`, `missing`, or `unclear`; `quote` is one verbatim excerpt from your text or `null`; `reason` is one short line. Model verdicts can vary: wording, ordering, and sometimes `status` itself may differ between runs on the same input. The output you get is the model's judgement for that request, and the quote check only proves the excerpt exists in your text.
 
 Errors are JSON too, with a short `error` message:
 
